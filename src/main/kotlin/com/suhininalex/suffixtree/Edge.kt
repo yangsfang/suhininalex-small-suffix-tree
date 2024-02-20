@@ -71,7 +71,7 @@ class TerminalEdge
 
     override var terminal: Node?
         get() = null
-        set(value) { throw UnsupportedOperationException()}
+        set(_) { throw UnsupportedOperationException()}
 
 }
 

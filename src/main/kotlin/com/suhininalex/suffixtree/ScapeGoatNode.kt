@@ -5,35 +5,53 @@ import java.util.*
 internal val alpha: Double = 0.58
 
 abstract class ScapeGoatNode<K, V>{
+  val comparator: Comparator<Any> = tokenComparator
+
   internal var left: ScapeGoatNode<K, V>? = null
   internal var right: ScapeGoatNode<K, V>? = null
   internal abstract val key: K
   internal abstract val value: V
-}
 
-internal fun <K, V> ScapeGoatNode<K, V>.getOrSetLeft(element: ScapeGoatNode<K, V>): ScapeGoatNode<K, V> {
-  if (left == null) {
-    left = element
+  internal fun getOrSetLeft(element: ScapeGoatNode<K, V>): ScapeGoatNode<K, V> {
+    if (left == null) {
+      left = element
+    }
+    return left!!
   }
-  return left!!
+
+  internal fun getOrSetRight(element: ScapeGoatNode<K, V>): ScapeGoatNode<K, V> {
+    if (right == null) {
+      right = element
+    }
+    return right!!
+  }
+
+  internal fun hasBothChildren() =
+    left != null && right != null
+
+  internal fun checkIsChild(child: ScapeGoatNode<K, V>?){
+    if (left !== child && right !== child)
+      throw IllegalArgumentException("Parent: $key ${left?.key} ${right?.key} Child: ${child?.key}")
+  }
+
+  internal fun children(accumulator: MutableList<ScapeGoatNode<K, V>> = mutableListOf()): MutableList<ScapeGoatNode<K, V>>{
+    accumulator.add(this)
+    left?.children(accumulator)
+    right?.children(accumulator)
+    return accumulator
+  }
 }
 
 internal fun h_alpha(alpha: Double, size: Int): Int {
+  fun log(value: Double, base: Double): Double = Math.log(value)/Math.log(base)
+
   return -log(value = size.toDouble(), base = alpha).toInt()
 }
 
-internal fun <K, V> ScapeGoatNode<K, V>.getOrSetRight(element: ScapeGoatNode<K, V>): ScapeGoatNode<K, V> {
-  if (right == null) {
-    right = element
-  }
-  return right!!
-}
-
-internal tailrec fun <K, V> ScapeGoatNode<K, V>?.search(key: K): ScapeGoatNode<K, V>? {
-  if (this == null) return null
+internal tailrec fun <K, V> ScapeGoatNode<K, V>.search(key: K): ScapeGoatNode<K, V>? {
   val cmp = comparator.compare(key, this.key)
-  if (cmp > 0) return right.search(key)
-  else if (cmp < 0) return left.search(key)
+  if (cmp > 0) return right?.search(key)
+  else if (cmp < 0) return left?.search(key)
   else return this
 }
 
@@ -60,23 +78,6 @@ tailrec internal fun <K, V> findMinimum(node: ScapeGoatNode<K, V>, nodeParent: S
   else return Pair(node, nodeParent)
 }
 
-internal fun <K, V> ScapeGoatNode<K, V>.hasBothChildren() =
-  left != null && right != null
-
-internal fun <K, V> ScapeGoatNode<K, V>.checkIsChild(child: ScapeGoatNode<K, V>?){
-  if (left !== child && right !== child)
-    throw IllegalArgumentException("Parent: $key ${left?.key} ${right?.key} Child: ${child?.key}")
-}
-
-internal fun <K, V> ScapeGoatNode<K, V>?.children(accumulator: MutableList<ScapeGoatNode<K, V>>): Collection<ScapeGoatNode<K, V>>{
-  if (this != null){
-    accumulator.add(this)
-    left.children(accumulator)
-    right.children(accumulator)
-  }
-  return accumulator
-}
-
 internal fun <K, V> siblingOf(parent: ScapeGoatNode<K, V>, node: ScapeGoatNode<K, V>): ScapeGoatNode<K, V>? =
   if (parent.left === node)  parent.right
   else if (parent.right === node)  parent.left
@@ -86,15 +87,15 @@ internal fun <K, V> ScapeGoatNode<K, V>?.size(): Int =
   if (this != null) left.size() + right.size() + 1
   else 0
 
-internal fun <K, V> flatten_tree(root: ScapeGoatNode<K, V>?, tail: ScapeGoatNode<K, V>? = null): ScapeGoatNode<K, V>? {
+internal fun <K, V> flatterTree(root: ScapeGoatNode<K, V>?, tail: ScapeGoatNode<K, V>? = null): ScapeGoatNode<K, V>? {
   if (root == null) return tail
-  root.right = flatten_tree(root.right, tail)
-  val result = flatten_tree(root.left, root)
+  root.right = flatterTree(root.right, tail)
+  val result = flatterTree(root.left, root)
   root.left = null
   return result
 }
 
-internal fun <K, V> Build_Height_Balanced_Tree(size: Int, head: ScapeGoatNode<K, V>?): Pair<ScapeGoatNode<K, V>?, ScapeGoatNode<K, V>?> {
+internal fun <K, V> buildHeightBalanceTree(size: Int, head: ScapeGoatNode<K, V>?): Pair<ScapeGoatNode<K, V>?, ScapeGoatNode<K, V>?> {
   if (size == 1) {
     return Pair(head, head)
   }
@@ -104,23 +105,20 @@ internal fun <K, V> Build_Height_Balanced_Tree(size: Int, head: ScapeGoatNode<K,
     head.right = null
     return Pair(root, root)
   }
-  val (leftRoot, leftLast) = Build_Height_Balanced_Tree(size/2, head)
+  val (leftRoot, leftLast) = buildHeightBalanceTree(size/2, head)
   val root = leftLast?.right ?: head
 
   root?.left = leftRoot
 
-  val (rightRoot, rightLast) = Build_Height_Balanced_Tree(size - size/2 - 1, root?.right)
+  val (rightRoot, rightLast) = buildHeightBalanceTree(size - size/2 - 1, root?.right)
   root?.right = rightRoot
 
   leftLast?.right = null
   return Pair(root, rightLast)
 }
 
-internal fun <K, V> Rebuild_Tree(size: Int, scapegoat: ScapeGoatNode<K, V>): Pair<ScapeGoatNode<K, V>?, ScapeGoatNode<K, V>?> {
-  val head = flatten_tree(scapegoat, null)!!
-  val result = Build_Height_Balanced_Tree(size, head)
+internal fun <K, V> rebuildTree(size: Int, scapegoat: ScapeGoatNode<K, V>): Pair<ScapeGoatNode<K, V>?, ScapeGoatNode<K, V>?> {
+  val head = flatterTree(scapegoat, null)!!
+  val result = buildHeightBalanceTree(size, head)
   return result
 }
-
-private fun log(value: Double, base: Double): Double =
-  Math.log(value)/Math.log(base)
